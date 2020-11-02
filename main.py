@@ -2,9 +2,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import animation
 
-
-# I also don't understand the last change to the SIR equations
-
 def initialize(x_max, y_max, numx, numy):
     dx = x_max / (numx - 1)
     dy = y_max / (numy - 1)
