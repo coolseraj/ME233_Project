@@ -9,7 +9,7 @@ def initialize(x_max, y_max, numx, numy):
     y = np.linspace(0, y_max, num=numy)
     return dx, dy, x, y
 
-def S_update(x, y, mu_s, dt, S, I, beta, N, dx, dy, numx, numy):
+def S_update(x, y, mu_s, dt, S, I, R, beta, N, dx, dy, numx, numy):
     S_old = S[x][y]
     s_sink = beta * I[x][y] * S[x][y] / N
     if y == 0: #Bottom No Flux BC
@@ -32,7 +32,7 @@ def S_update(x, y, mu_s, dt, S, I, beta, N, dx, dy, numx, numy):
     S[x][y] = S[x][y] - mu_s*dt*2*S_old*(1/dx**2 + 1/dy**2)
     return S
 
-def R_update(x, y, mu_r, dt, R, I, gamma, dx, dy, numx, numy):
+def R_update(x, y, mu_r, dt, S, I, R, gamma, dx, dy, numx, numy):
     R_old = R[x][y]
     r_source = gamma*I[x][y]
     if y == 0: #Bottom No Flux BC
@@ -55,7 +55,7 @@ def R_update(x, y, mu_r, dt, R, I, gamma, dx, dy, numx, numy):
     R[x][y] = R[x][y] - mu_r*dt*2*R_old*(1/(dx**2) + 1/(dy**2))
     return R
 
-def I_update(x, y, mu_i, dt, I, S, beta, N, gamma, dx, dy, numx, numy):
+def I_update(x, y, mu_i, dt, S, I, R, beta, N, gamma, dx, dy, numx, numy):
     I_old = I[x][y]
     i_source = beta * I[x][y] * S[x][y] / N
     i_sink = gamma*I[x][y]
@@ -109,9 +109,9 @@ def solve():
         print(t)
         for i in range(0, num_x):
             for j in range(0, num_y):
-                S = S_update(i, j, mu_s, dt, S, I, beta, N, dx, dy, num_x, num_y)
-                R = R_update(i, j, mu_r, dt, R, I, gamma, dx, dy, num_x, num_y)
-                I = I_update(i, j, mu_i, dt, I, S, beta, N, gamma, dx, dy, num_x, num_y)
+                S = S_update(i, j, mu_s, dt, S, I, R, beta, N, dx, dy, num_x, num_y)
+                R = R_update(i, j, mu_r, dt, S, I, R, gamma, dx, dy, num_x, num_y)
+                I = I_update(i, j, mu_i, dt, S, I, R, beta, N, gamma, dx, dy, num_x, num_y)
         S_t[:, :, t_ind] = S
         I_t[:, :, t_ind] = I
         R_t[:, :, t_ind] = R
@@ -126,5 +126,7 @@ if __name__ == "__main__":
    plt.plot(t_vec, R_t.sum(0).sum(0), 'bo:')
    plt.title("Trajectories")
    plt.show()
+
+
 
 
