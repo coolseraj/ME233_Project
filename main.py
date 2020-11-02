@@ -82,13 +82,13 @@ def I_update(x, y, mu_i, dt, I, S, beta, N, gamma, dx, dy, numx, numy):
     I[x][y] = I[x][y] - mu_i*dt*2*I_old*(1/(dx**2) + 1/(dy**2))
     return I
 
-def main():
+def solve():
     x_max = 20 #1
     y_max = 20 #1
     num_x = 11
     num_y = 11
     num_t = 100
-    dt = 0.01
+    dt = 0.5
     dx, dy, x, y = initialize(x_max, y_max, num_x, num_y)
     mu_s = 5e-2 #0.0002
     mu_r = 5e-2 #0.0
@@ -98,28 +98,36 @@ def main():
     N = 1 #5
     S = np.ones((num_x, num_y))
     S[5][5] = 0.7 #3
-    I = np.zeros((num_x, num_y))
     I = N - S
     R = np.zeros((num_x, num_y))
     t_vec = np.linspace(0, num_t, int(num_t/dt + 1))
-    for t in t_vec:
-        plo1 = plt.figure(1)
+    S_t = np.ones((num_x, num_y,len(t_vec)))
+    I_t = np.zeros((num_x, num_y,len(t_vec)))
+    R_t = np.zeros((num_x, num_y, len(t_vec)))
+    S_t[:, :, 0] = S
+    I_t[:, :, 0] = I
+    R_t[:, :, 0] = R
+    for t_ind in range(0, len(t_vec)):
+        t = t_vec[t_ind]
         print(t)
-        plt.plot(t, S[5][5], 'yo:')
-        plt.plot(t, I[5][5], 'ro:')
-        plt.plot(t, R[5][5], 'bo:')
-        total_S = S.sum()
-        total_I = I.sum()
-        total_R = R.sum()
-        plo2 = plt.figure(2)
-        plt.plot(t, total_S, 'yo:')
-        plt.plot(t, total_I, 'ro:')
-        plt.plot(t, total_R, 'bo:')
         for i in range(0, num_x):
             for j in range(0, num_y):
                 S = S_update(i, j, mu_s, dt, S, I, beta, N, dx, dy, num_x, num_y)
                 R = R_update(i, j, mu_r, dt, R, I, gamma, dx, dy, num_x, num_y)
                 I = I_update(i, j, mu_i, dt, I, S, beta, N, gamma, dx, dy, num_x, num_y)
-    plt.show()
+        S_t[:, :, t_ind] = S
+        I_t[:, :, t_ind] = I
+        R_t[:, :, t_ind] = R
+    return S_t, I_t, R_t, t_vec
+
+
 if __name__ == "__main__":
-    main()
+   S_t, I_t, R_t, t_vec  =  solve()
+   print(S_t[:, :, -1].sum() + I_t[:, :,-1].sum() + R_t[:, :, -1].sum())
+   plt.plot(t_vec, S_t.sum(0).sum(0), 'yo:')
+   plt.plot(t_vec, I_t.sum(0).sum(0), 'ro:')
+   plt.plot(t_vec, R_t.sum(0).sum(0), 'bo:')
+   plt.title("Trajectories")
+   plt.show()
+
+
