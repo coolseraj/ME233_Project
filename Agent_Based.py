@@ -109,7 +109,7 @@ class Lognormal:
 
 
 # This is just to test the above classes
-loc_1 = Location(ind=0, name="Gym", protocol=Protocol(max_people=100, spacing=6, masks=True))
+loc_1 = Location(ind=0, name="Wilbur Dorm", protocol=Protocol(max_people=100, spacing=6, masks=True))
 person_1  = Person(year="Freshman", housing_loc=loc_1, current_state=0, P_type="Gaussian", params_list=[0.5, 0.1])
 
 
