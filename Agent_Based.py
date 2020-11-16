@@ -1,8 +1,9 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from random import sample
 
 
-#Assumes that the infector determines the rate of infection. Does not depend on location. Only number of people and year
+# Assumes that the infector determines rate of infection. Does not depend on location. Only number of people and year
 # This class runs the simulation
 
 class Simulator:
@@ -16,13 +17,13 @@ class Simulator:
         self.states = np.zeros((len(self.t), len(self.people)))
         self.S, self.I, self.R, self.Loc_Inf = self.simulate()
 
-
     def simulate(self):
-        recovery =  abs(Gaussian(1/self.gamma, 2).sample(len(self.people)))
+        recovery =  abs(Gaussian(1/self.gamma, 2).sample(len(self.people)))  # Sample from gaussian distribution to get recovery time. QUESTION: does recovery change for each person?
         loc_inf = np.zeros((len(self.locations)))
         S, I, R = np.zeros((len(self.t))), np.zeros((len(self.t))), np.zeros((len(self.t)))
         num_infected = 0
         for person_ind in range(0,len(self.people)):
+            # If current state of person is 1 (infected), add 1 to the total number of infected people
             if self.people[person_ind].current_state == 1:
                 num_infected = num_infected + 1
                 self.states[0][person_ind] = 1
@@ -30,18 +31,24 @@ class Simulator:
         I[0] = num_infected
         S[0] = len(self.people)-num_infected
 
+        # Three for loops used to iterate through time, cells (locations, i.e. the Oval, dining hall, etc),
+        # and people in location, for for loops 1, 2, and 3 respectively.
         for t_ind in range(0, len(self.t)-1):
             for loc_ind in range(0, len(self.locations)):
                 location = self.locations[loc_ind]
+
+                # Poisson vector may go here. Can utilize study to multiply infection rate by percentage relative to
+                # proportion of infections in freshman, sophomore, junior, senior, and graduate infection rates on
+                # campus.
                 for i in range(0, len(self.locations[loc_ind].people)):
                     person_1_id = location.people[i].id
                     person_1 = self.states[t_ind][person_1_id] #0 1 or 2
-                    self.locations[loc_ind].people[i].past_locations.append(location)
+                    self.locations[loc_ind].people[i].past_locations.append(location)  # Store past locations visited (not used)
                     self.people[person_1_id].past_locations.append(location)
                     if person_1 == 0:
                         continue #This might fuck up
                     if person_1 == 2:
-                        self.states[t_ind+1][person_1_id] = 2
+                        self.states[t_ind+1][person_1_id] = 2  # If person is recovered (2), can't be reinfected
                         continue
                     for j in range(0, len(self.locations[loc_ind].people)):
                         person_2_id = location.people[j].id
@@ -53,9 +60,15 @@ class Simulator:
                         if person_2 == 2:
                             self.states[t_ind+1][person_2_id] = 2
                             continue
-                        #Collision
+
+                        # Collision/infection occurring
+                        # REVIEW SECTION
+
+                        # Sample from Gaussian distribution based on protocol (outside/inside, mask/no mask)
                         val_infect_location = location.protocol.P.sample(1)
                         thresh = 1.3
+                        # If number sampled from distribution defined by protocol is higher than threshold,
+                        # then the person becomes infected
                         """ if self.t[t_ind] > 2 and self.t[t_ind] < 8:
                             thresh = 2
                         if self.t[t_ind] > 8 and self.t[t_ind] < 13:
@@ -81,13 +94,34 @@ class Simulator:
             S[t_ind + 1] = len(np.where(self.states[t_ind + 1 ,:] == 0)[0])
             I[t_ind + 1] = len(np.where(self.states[t_ind + 1, :] == 1)[0])
             R[t_ind + 1] = len(np.where(self.states[t_ind + 1, :] == 2)[0])
-            #Reassign people
-            #Zero out
+
+            # Reassign locations for next time point by clearing location values
             for loc_ind in range(0, len(self.locations)):
                 self.locations[loc_ind].people = []
+
             for person in self.people:
                 new_loc = np.random.choice(self.locations, 1, p=person.P_transition)[0]
                 self.locations[new_loc.ind].people.append(person)
+
+            # Possible replacement code for above for loop. Randomizes the people going into each room instead of
+            # randomizing the room assigned to each person. Allows rooms to follow max capacity limits (which we can
+            # change.
+            """
+            ### Section has not yet been formally run and tested ###
+            total_pop_size = len(self.people)  # Store total size of people array
+            lin_list = np.arange(total_pop_size)
+            draw_sample = sample(lin_list, len(lin_list))  # Make linear list random for sampling
+            # Iterate through location cells
+            for loc_ind in range(0, len(self.locations)):
+                i = 0
+                # Assign randomly chosen people to location until room is filled
+                while i < len(self.locations):
+                    temp = draw_sample.pop(0)
+                    person = self.people[temp]
+                    self.locations[loc_ind].people.append(person)
+                    i += 1
+            ### End of test section ###
+            """
         return S, I, R, loc_inf
 
 
@@ -108,18 +142,18 @@ class Simulator:
 class Person:
     def __init__(self, year, current_state, P_transition, id):
         self.year = year
-        self.current_state = current_state #int of 0 (susceptible), 1 (infected), or 2 (recovered)
-        self.past_locations = [] # Stores all the prior locations visited at each time step
-        self.P_transition = P_transition # vector of length locations
+        self.current_state = current_state  # int of 0 (susceptible), 1 (infected), or 2 (recovered)
+        self.past_locations = []  # Stores all the prior locations visited at each time step
+        self.P_transition = P_transition  # vector of length locations
         self.id = id
 
 
 # This class represents each location (an associated ID and name)
 class Location:
     def __init__(self, ind, name, protocol, people):
-        self.ind = ind #int of (0, 100) for their location
-        self.name = name #string that represents the name
-        self.protocol = protocol #Restrictions/policies put in place
+        self.ind = ind  # int of (0, 100) for their location
+        self.name = name  # string that represents the name
+        self.protocol = protocol  # Restrictions/policies put in place
         self.people = people
 
 # This class represents protocols for each location (i.e. max people, spacing, masks. etc.)
@@ -135,11 +169,11 @@ class Protocol:
             mu, sigma = 0.6, 0.1
         if masks and not outdoors:
             mu, sigma = 0.8, 0.1
-        if not masks and outdoors:
+        if not masks and outdoors:  # Like the Oval
             mu, sigma = 0.5, 0.1
         if not masks and not outdoors:
             mu, sigma = 1, 0.1
-        parameters = [mu, sigma]#Factor in how indoors and outdoors affects parameters
+        parameters = [mu, sigma]  # Factor in how indoors and outdoors affects parameters
         self.P = self.define_probability(parameters)
 
     def define_probability(self, params):
@@ -258,4 +292,4 @@ g.plot(10000, 100, 'Gauss', 2, 2, 1)
 p.plot(10000, 100, 'Poisson', 2, 2, 2);
 b.plot(10000, 100, 'Beta', 2, 2, 3);
 l.plot(10000, 100, 'Lognormal', 2, 2, 4);
-plt.show()
+#plt.show()

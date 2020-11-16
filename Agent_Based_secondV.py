@@ -17,6 +17,7 @@ class Simulator:
         self.S, self.I, self.R, self.Loc_Inf = self.simulate()
 
     def simulate(self):
+        print(self.gamma)
         recovery = abs(Gaussian(1/self.gamma, 2).sample(len(self.people)))  # Sample from gaussian distribution to get recovery time. QUESTION: does recovery change for each person?
         loc_inf = np.zeros((len(self.locations)))
         S, I, R = np.zeros((len(self.t))), np.zeros((len(self.t))), np.zeros((len(self.t)))  # 0 = S, 1 = I, 2 = R
@@ -98,20 +99,19 @@ class Simulator:
             # Reassign locations for next time point by clearing location values
             for loc_ind in range(0, len(self.locations)):
                 self.locations[loc_ind].people = []
-            """
-            for person in self.people: #pretend there is no max for each room, invert location and persons so can choose 100# person for a room
+
+            for person in self.people:
                 new_loc = np.random.choice(self.locations, 1, p=person.P_transition)[0]
                 self.locations[new_loc.ind].people.append(person)
-            """
+
             # Possible replacement code for above for loop. Randomizes the people going into each room instead of
             # randomizing the room assigned to each person. Allows rooms to follow max capacity limits (which we can
             # change.
-
+            """
             ### Section has not yet been formally run and tested ###
             total_pop_size = len(self.people)  # Store total size of people array
-            lin_list = np.linspace(0, total_pop_size-1)
-            draw_sample = np.random.sample(lin_list, total_pop_size)  # Make linear list random for sampling
-
+            lin_list = np.arange(total_pop_size)
+            draw_sample = sample(lin_list, len(lin_list))  # Make linear list random for sampling
             # Iterate through location cells
             for loc_ind in range(0, len(self.locations)):
                 i = 0
@@ -119,9 +119,10 @@ class Simulator:
                 while i < len(self.locations):
                     temp = draw_sample.pop(0)
                     person = self.people[temp]
-                    self.locations[loc_ind.ind].people.append(person)
+                    self.locations[loc_ind].people.append(person)
                     i += 1
             ### End of test section ###
+            """
 
         return S, I, R, loc_inf
 
@@ -246,29 +247,27 @@ class Lognormal:
         plt.title(title)
 
 
-
 # This is just to test the above classes
 people = []
-thresh = [0.3, 0.14, 0.35, 0.4]
 for p in range(0, 1000):
     people.append(Person(year="Grad", current_state=0, P_transition=[0.1, 0.5, 0.1, 0.3], id=p))
 people[5].current_state = 1
 people[55].current_state = 1
-people[605].current_state = 1
-people[850].current_state = 1
+people[65].current_state = 1
+people[85].current_state = 1
 
 
 
 loc_1 = Location(ind=0, name="EVGR", protocol=Protocol(max_people=100, masks=True, outdoors=False, P_type="Gaussian"), people=people[0:100])
-loc_2 = Location(ind=1, name="Gym", protocol=Protocol(max_people=15, masks=False, outdoors=False, P_type="Gaussian"), people=people[100:700])
-loc_3 = Location(ind=2, name="Dining Hall", protocol=Protocol(max_people=10, masks=True, outdoors=False, P_type="Gaussian"), people=people[700:900])
-loc_4 = Location(ind=3, name="Oval", protocol=Protocol(max_people=50, masks=True, outdoors=True, P_type="Gaussian"), people=people[900:1000])
-locations = [loc_1, loc_2, loc_3, loc_4] ##### MUST ADD LOCATIONS IN ORDER OF IND
+loc_2 = Location(ind=1, name="Gym", protocol=Protocol(max_people=15, masks=False, outdoors=False, P_type="Gaussian"), people=people[100:200])
+loc_3 = Location(ind=2, name="Dining Hall", protocol=Protocol(max_people=10, masks=True, outdoors=False, P_type="Gaussian"), people=people[200:300])
+loc_4 = Location(ind=3, name="Oval", protocol=Protocol(max_people=50, masks=True, outdoors=True, P_type="Gaussian"), people=people[300:1000])
+locations = [loc_1 , loc_2, loc_3, loc_4] ##### MUST ADD LOCATIONS IN ORDER OF IND
 
 
 
 
-sim = Simulator(t_domain=[0, 100], dt=1, locations=locations, people=people, beta=5/6.5, gamma=1/13)
+sim = Simulator(t_domain=[0, 100], dt=1, locations=locations, people=people, beta=3/6.5, gamma=1/6.5)
 plt.figure()
 plt.plot(sim.t, sim.S, 'y')
 plt.plot(sim.t, sim.I, 'r')
@@ -281,7 +280,7 @@ p = Poisson(2)
 b = Beta(8, 2)
 l = Lognormal(0, 0.1)
 g.plot(10000, 100, 'Gauss', 2, 2, 1)
-p.plot(10000, 100, 'Poisson', 2, 2, 2)
-b.plot(10000, 100, 'Beta', 2, 2, 3)
-l.plot(10000, 100, 'Lognormal', 2, 2, 4)
+p.plot(10000, 100, 'Poisson', 2, 2, 2);
+b.plot(10000, 100, 'Beta', 2, 2, 3);
+l.plot(10000, 100, 'Lognormal', 2, 2, 4);
 #plt.show()
