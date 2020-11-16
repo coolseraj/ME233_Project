@@ -120,6 +120,7 @@ class Simulator:
                     temp = draw_sample.pop(0)
                     person = self.people[temp]
                     self.locations[loc_ind.ind].people.append(person)
+                    i += 1
             ### End of test section ###
 
         return S, I, R, loc_inf
