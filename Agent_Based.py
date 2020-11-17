@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import random
 
 
 #Assumes that the infector determines the rate of infection. Does not depend on location. Only number of people and year
@@ -33,73 +34,82 @@ class Simulator:
         for t_ind in range(0, len(self.t)-1):
             for loc_ind in range(0, len(self.locations)):
                 location = self.locations[loc_ind]
-                for i in range(0, len(self.locations[loc_ind].people)):
-                    person_1_id = location.people[i].id
-                    person_1 = self.states[t_ind][person_1_id] #0 1 or 2
-                    self.locations[loc_ind].people[i].past_locations.append(location)
-                    self.people[person_1_id].past_locations.append(location)
-                    if person_1 == 0:
-                        continue #This might fuck up
-                    if person_1 == 2:
-                        self.states[t_ind+1][person_1_id] = 2
-                        continue
-                    for j in range(0, len(self.locations[loc_ind].people)):
-                        person_2_id = location.people[j].id
-                        if person_1_id == person_2_id:
-                            continue
-                        person_2 = self.states[t_ind][person_2_id]
-                        if person_2 == 1:
-                            continue
-                        if person_2 == 2:
-                            self.states[t_ind+1][person_2_id] = 2
-                            continue
-                        #Collision
-                        val_infect_location = location.protocol.P.sample(1)
-                        thresh = 1.3
-                        """ if self.t[t_ind] > 2 and self.t[t_ind] < 8:
-                            thresh = 2
-                        if self.t[t_ind] > 8 and self.t[t_ind] < 13:
-                            thresh = 1.4
-                        if self.t[t_ind] > 13 and self.t[t_ind] < 19:
-                            thresh = 2
-                        if self.t[t_ind] > 19:
-                            thresh = 1.4
-                        """
-
-                        if val_infect_location> thresh and self.states[t_ind+1][person_2_id] != 1: #Collision
-                            self.states[t_ind+1][person_2_id] = 1
-                            print('Person  ' + str(location.people[j].id) + ' infected by person ' + str(location.people[i].id)  + 'at ' + location.name)
-                            loc_inf[loc_ind] = loc_inf[loc_ind] + 1
-
-                    #Check if person i recovers
-                    days_sick = np.sum(self.states[0:t_ind, person_1_id])
-                    if days_sick >= recovery[person_1_id]:
-                        self.states[t_ind+1, person_1_id] = 2
-                    else:
-                        self.states[t_ind+1, person_1_id] = 1
+                ids = [person.id for person in location.people]
+                potential_infs, potential_inf_ids = self.precompute_infections(location)
+                for i in range(0, len(ids)):
+                    potential_infector_id = ids[i]
+                    #Update the location just to store
+                    self.people[potential_infector_id].past_locations.append(location)
+                    self.update_state(t_ind, potential_infector_id, potential_inf_ids[i], recovery)
+                #Update person_1's state itself?
 
             S[t_ind + 1] = len(np.where(self.states[t_ind + 1 ,:] == 0)[0])
             I[t_ind + 1] = len(np.where(self.states[t_ind + 1, :] == 1)[0])
             R[t_ind + 1] = len(np.where(self.states[t_ind + 1, :] == 2)[0])
-            #Reassign people
-            #Zero out
+
+            total_pop_size = len(self.people)  # Store total size of people array
+            lin_list = np.linspace(0, total_pop_size - 1, total_pop_size)
+            #draw_sample = np.random.choice(lin_list, total_pop_size)  # Make linear list random for sampling
+            np.random.shuffle(lin_list)
+            draw_sample = lin_list
             for loc_ind in range(0, len(self.locations)):
                 self.locations[loc_ind].people = []
-            for person in self.people:
-                new_loc = np.random.choice(self.locations, 1, p=person.P_transition)[0]
-                self.locations[new_loc.ind].people.append(person)
+            # Go through randomized list of people
+            for person_id in draw_sample:  # pretend there is no max for each room, invert location and persons so can choose 100# person for a room
+                person_id = int(person_id)
+                new_loc = np.random.choice(self.locations, 1, p=self.people[person_id].P_transition)[0]
+                if len(new_loc.people) > new_loc.protocol.max_people:
+                    raise TypeError("Maximum Capacity exceeded")
+                self.locations[new_loc.ind].people.append(self.people[person_id])
+
+
         return S, I, R, loc_inf
 
+    def precompute_infections(self, location):
+        ids = [person.id for person in location.people]
+        infections = location.protocol.P.sample(len(ids))
+        inf_mat = []
+        # Assign who you will infect
+        for i in range(0, len(ids)):
+            infector_id = ids[i]
+            inf_ids = random.choices(ids, k=infections[i])
+            inf_mat.append(list(inf_ids))
+            # Might pick the person themselves, or the same person twice. But this shouldn't be a problem
+        return infections, inf_mat
 
+    def update_state(self, t_ind, person_1_id, person_2_ids, recovery):
+        #Update the state by checking for the collision
 
+        person_1_state = self.states[t_ind, person_1_id]
+        if person_1_state == 0:
+            return
+        if person_1_state == 2:
+            self.states[t_ind+1][person_1_id] = 2
+            return
 
+        for j in range(0, len(person_2_ids)):
+            person_2_id = person_2_ids[j]
+            person_2_state = self.states[t_ind, person_2_id]
 
+            if person_1_id == person_2_id:
+                continue
+            if person_2_state == 1:
+                continue
+            if person_2_state == 2:
+                self.states[t_ind + 1][person_2_id] = 2
+                continue
+            if self.states[t_ind+1, person_2_id] == 1:
+                continue
+            #None of the other if statements were triggered, so this is a successful infection
+            self.states[t_ind + 1,person_2_id] = 1
+        #Check recovery
 
-
-
-
-
-
+        days_sick = np.sum(self.states[0:t_ind, person_1_id])
+        if person_1_state == 1:
+            if days_sick >= recovery[person_1_id]:
+                self.states[t_ind + 1, person_1_id] = 2
+            else:
+                self.states[t_ind + 1, person_1_id] = 1
 
 
 
@@ -132,14 +142,17 @@ class Protocol:
         self.outdoors = outdoors
         self.P_type = P_type
         if masks and outdoors:
-            mu, sigma = 0.6, 0.1
+            mu, sigma, lam = 0.6, 0.1, dt*(beta*0.8)
         if masks and not outdoors:
-            mu, sigma = 0.8, 0.1
+            mu, sigma, lam = 0.8, 0.1, beta *dt
         if not masks and outdoors:
-            mu, sigma = 0.5, 0.1
+            mu, sigma, lam = 0.5, 0.1, beta * dt
         if not masks and not outdoors:
-            mu, sigma = 1, 0.1
-        parameters = [mu, sigma]#Factor in how indoors and outdoors affects parameters
+            mu, sigma, lam = 1, 0.1, dt*(beta *1.5)
+        if P_type == "Gaussian":
+            parameters = [mu, sigma]#Factor in how indoors and outdoors affects parameters
+        if P_type == "Poisson":
+            parameters = [lam] #Poisson
         self.P = self.define_probability(parameters)
 
     def define_probability(self, params):
@@ -187,7 +200,7 @@ class Poisson:
     def plot(self, num_samples, bins, title, num_rows, num_cols, ind):
         samples = self.sample(num_samples)
         plt.subplot(num_rows, num_cols, ind)
-        plt.hist(samples, bins, density=True)
+        plt.hist(samples, bins, density=False)
         plt.title(title)
 
 class Beta:
@@ -221,28 +234,33 @@ class Lognormal:
         plt.title(title)
 
 
+beta = 2/6.5
+gamma = 1/6.5
+dt = 1
+
 
 # This is just to test the above classes
 people = []
 for p in range(0, 1000):
-    people.append(Person(year="Grad", current_state=0, P_transition=[0.1, 0.5, 0.1, 0.3], id=p))
+    people.append(Person(year="Grad", current_state=0, P_transition=[1, 0, 0, 0], id=p))
 people[5].current_state = 1
 people[55].current_state = 1
 people[65].current_state = 1
 people[85].current_state = 1
 
 
-
-loc_1 = Location(ind=0, name="EVGR", protocol=Protocol(max_people=100, masks=True, outdoors=False, P_type="Gaussian"), people=people[0:100])
-loc_2 = Location(ind=1, name="Gym", protocol=Protocol(max_people=15, masks=False, outdoors=False, P_type="Gaussian"), people=people[100:200])
-loc_3 = Location(ind=2, name="Dining Hall", protocol=Protocol(max_people=10, masks=True, outdoors=False, P_type="Gaussian"), people=people[200:300])
-loc_4 = Location(ind=3, name="Oval", protocol=Protocol(max_people=50, masks=True, outdoors=True, P_type="Gaussian"), people=people[300:1000])
+type = "Poisson"
+loc_1 = Location(ind=0, name="EVGR", protocol=Protocol(max_people=10e5, masks=True, outdoors=False, P_type=type), people=people[0:250])
+loc_2 = Location(ind=1, name="Gym", protocol=Protocol(max_people=10e5, masks=False, outdoors=False, P_type=type), people=people[250:500])
+loc_3 = Location(ind=2, name="Dining Hall", protocol=Protocol(max_people=10e5, masks=True, outdoors=False, P_type=type), people=people[500:750])
+loc_4 = Location(ind=3, name="Oval", protocol=Protocol(max_people=10e5, masks=True, outdoors=True, P_type=type), people=people[750:1000])
 locations = [loc_1 , loc_2, loc_3, loc_4] ##### MUST ADD LOCATIONS IN ORDER OF IND
 
 
 
 
-sim = Simulator(t_domain=[0, 100], dt=1, locations=locations, people=people, beta=3/6.5, gamma=1/6.5)
+sim = Simulator(t_domain=[0, 100], dt=dt, locations=locations, people=people, beta=3/6.5, gamma=1/6.5)
+
 plt.figure()
 plt.plot(sim.t, sim.S, 'y')
 plt.plot(sim.t, sim.I, 'r')
@@ -251,11 +269,11 @@ plt.legend(("S", "I", "R"))
 plt.show()
 
 g = Gaussian(0, 0.1)
-p = Poisson(2)
+p = Poisson(0.5)
 b = Beta(8, 2)
 l = Lognormal(0, 0.1)
-g.plot(10000, 100, 'Gauss', 2, 2, 1)
-p.plot(10000, 100, 'Poisson', 2, 2, 2);
-b.plot(10000, 100, 'Beta', 2, 2, 3);
-l.plot(10000, 100, 'Lognormal', 2, 2, 4);
+g.plot(num_samples=10000, bins=100, title='Gaussian', num_rows=2, num_cols=2, ind=1);
+p.plot(num_samples=10000, bins=100, title='Poisson', num_rows=2, num_cols=2, ind=2);
+b.plot(num_samples=10000, bins=100, title='Beta', num_rows=2, num_cols=2, ind=3);
+l.plot(num_samples=10000, bins=100, title='Lognormal', num_rows=2, num_cols=2, ind=4);
 plt.show()
