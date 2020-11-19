@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import random
 
 
-#Assumes that the infector determines the rate of infection. Does not depend on location. Only number of people and year
+# Assumes that the infector determines the rate of infection. Does not depend on location. Only number of people and year
 # This class runs the simulation
 
 class Simulator:
@@ -20,7 +20,7 @@ class Simulator:
 
 
     def simulate(self):
-        recovery =  abs(Gaussian(1/self.gamma, 2).sample(len(self.people)))
+        recovery = abs(Gaussian(1/self.gamma, 2).sample(len(self.people)))
         loc_inf = np.zeros((len(self.locations)))
         S, I, R = np.zeros((len(self.t))), np.zeros((len(self.t))), np.zeros((len(self.t)))
         num_infected = 0
@@ -37,7 +37,7 @@ class Simulator:
                 location = self.locations[loc_ind]
                 ids = [person.id for person in location.people]
                 
-                #if the location is Quarantine, no infection could occur, only recovery
+                # if the location is Quarantine, no infection could occur, only recovery
                 if location.name == "Quarantine":
                     for i in range(0, len(ids)):
                         person_id = ids[i]
@@ -54,10 +54,10 @@ class Simulator:
                     potential_infs, potential_inf_ids = self.precompute_infections(location)
                     for i in range(0, len(ids)):
                         potential_infector_id = ids[i]
-                        #Update the location just to store
+                        # Update the location just to store
                         self.people[potential_infector_id].past_locations.append(location)
                         self.update_state(t_ind, potential_infector_id, potential_inf_ids[i], recovery)
-                    #Update person_1's state itself?
+                    # Update person_1's state itself?
                     
                     
             S[t_ind + 1] = len(np.where(self.states[t_ind + 1 ,:] == 0)[0])
@@ -67,7 +67,7 @@ class Simulator:
 
             total_pop_size = len(self.people)  # Store total size of people array
             lin_list = np.linspace(0, total_pop_size - 1, total_pop_size)
-            #draw_sample = np.random.choice(lin_list, total_pop_size)  # Make linear list random for sampling
+            # draw_sample = np.random.choice(lin_list, total_pop_size)  # Make linear list random for sampling
             np.random.shuffle(lin_list)
             draw_sample = lin_list
             for loc_ind in range(0, len(self.locations)):
@@ -77,25 +77,25 @@ class Simulator:
                 person_id = int(person_id)
                 days_sick = np.sum(self.states[0:t_ind, person_id])
                 person_state = self.states[t_ind, person_id]
-                #if past location == quarantine
+                # if past location == quarantine
                 if self.people[person_id].past_locations[-1].name == "Quarantine":
-                    #if the person already recovered => he can come out of quarantine
+                    # if the person already recovered => he can come out of quarantine
                     if self.states[t_ind + 1, person_id] == 2:
                         new_loc = np.random.choice(self.locations[:-1], 1, p=self.people[person_id].P_transition)[0]
                         if len(new_loc.people) > new_loc.protocol.max_people:
                             raise TypeError("Maximum Capacity exceeded")
                         self.locations[new_loc.ind].people.append(self.people[person_id])
-                    #else, he has to stay in quarantine
+                    # else, he has to stay in quarantine
                     elif self.states[t_ind + 1, person_id] == 1:
                         self.locations[self.people[person_id].past_locations[-1].ind].people.append(self.people[person_id])
                     else:
                         raise TypeError("An uninfected person is in quarantine ")
-                #the past location is not quarantine
+                # the past location is not quarantine
                 else:
-                    #if the person met these conditions, we sent him in quarantine
-                    if self.quarantine and person_state == 1 and days_sick >= 3 and self.states[t_ind + 1, person_id] != 2 and random.uniform(0, 1)<=0.8 and self.people[person_id].past_locations[-1].name != "Quarantine":
+                    # if the person met these conditions, we sent him in quarantine
+                    if self.quarantine and person_state == 1 and days_sick >= AVG_DAYS_SICK and self.states[t_ind + 1, person_id] != 2 and random.uniform(0, 1)<=0.8 and self.people[person_id].past_locations[-1].name != "Quarantine":
                         new_loc = self.locations[-1]
-                    #else, we randomly assign people to other locations
+                    # else, we randomly assign people to other locations
                     else:
                         new_loc = np.random.choice(self.locations[:-1], 1, p=self.people[person_id].P_transition)[0]
                     if len(new_loc.people) > new_loc.protocol.max_people:
@@ -151,7 +151,6 @@ class Simulator:
                 self.states[t_ind + 1, person_1_id] = 2
             else:
                 self.states[t_ind + 1, person_1_id] = 1
-
 
 
 
@@ -274,30 +273,44 @@ class Lognormal:
         plt.hist(samples, bins, density=True)
         plt.title(title)
 
-
-beta = 2/6.5
+beta = 3/6.5
 gamma = 1/6.5
 dt = 1
-
+AVG_DAYS_SICK = 50
+total_people = 7524  # See spreadsheet
+expected_infected = 516  # See spreadsheet
 
 # This is just to test the above classes
 people = []
-for p in range(0, 1000):
-    people.append(Person(year="Grad", current_state=0, P_transition=[1, 0, 0, 0], id=p))
+for p in range(0, total_people):
+    people.append(Person(year="Undergrad", current_state=0, P_transition=[.5, 0.1667, 0.1667, 0.1666], id=p))
+
+for x in range(0, expected_infected):
+    people[x].current_state = 1
+"""
 people[5].current_state = 1
 people[55].current_state = 1
 people[65].current_state = 1
 people[85].current_state = 1
+"""
 
-
+"""
 type = "Poisson"
-loc_1 = Location(ind=0, name="EVGR", protocol=Protocol(max_people=10e5, masks=True, outdoors=False, P_type=type), people=people[0:250])
+loc_1 = Location(ind=0, name="Residential", protocol=Protocol(max_people=10e5, masks=True, outdoors=False, P_type=type), people=people[0:250])
 loc_2 = Location(ind=1, name="Gym", protocol=Protocol(max_people=10e5, masks=False, outdoors=False, P_type=type), people=people[250:500])
 loc_3 = Location(ind=2, name="Dining Hall", protocol=Protocol(max_people=10e5, masks=True, outdoors=False, P_type=type), people=people[500:750])
 loc_4 = Location(ind=3, name="Oval", protocol=Protocol(max_people=10e5, masks=True, outdoors=True, P_type=type), people=people[750:1000])
 Quarantine = Location(ind=4, name="Quarantine", protocol=Protocol(max_people=10e5, masks=True, outdoors=False, P_type=type), people=[])
 locations = [loc_1 , loc_2, loc_3, loc_4, Quarantine] ##### MUST ADD LOCATIONS IN ORDER OF IND
+"""
 
+type = "Poisson"
+loc_1 = Location(ind=0, name="Residential", protocol=Protocol(max_people=10e5, masks=True, outdoors=False, P_type=type), people=people[0:total_people])
+loc_2 = Location(ind=1, name="Gym", protocol=Protocol(max_people=10e5, masks=False, outdoors=False, P_type=type), people=[])
+loc_3 = Location(ind=2, name="Dining Hall", protocol=Protocol(max_people=10e5, masks=True, outdoors=False, P_type=type), people=[])
+loc_4 = Location(ind=3, name="Oval", protocol=Protocol(max_people=10e5, masks=True, outdoors=True, P_type=type), people=[])
+Quarantine = Location(ind=4, name="Quarantine", protocol=Protocol(max_people=10e5, masks=True, outdoors=False, P_type=type), people=[])
+locations = [loc_1 , loc_2, loc_3, loc_4, Quarantine] ##### MUST ADD LOCATIONS IN ORDER OF IND
 
 sim = Simulator(t_domain=[0, 100], dt=dt, locations=locations, people=people, beta=3/6.5, gamma=1/6.5, quarantine=True)
 
@@ -306,6 +319,8 @@ plt.plot(sim.t, sim.S, 'y')
 plt.plot(sim.t, sim.I, 'r')
 plt.plot(sim.t, sim.R, 'b')
 plt.legend(("S", "I", "R"))
+plt.suptitle("Stanford Agent-Based Plot")
+plt.title("Beta = " + str("{:.2f}".format(round(beta, 2))) + ", Gamma = " + str("{:.2f}".format(round(gamma, 2))) + ", Days Sick = " + str(AVG_DAYS_SICK))
 plt.show()
 
 g = Gaussian(0, 0.1)
@@ -316,4 +331,4 @@ g.plot(num_samples=10000, bins=100, title='Gaussian', num_rows=2, num_cols=2, in
 p.plot(num_samples=10000, bins=100, title='Poisson', num_rows=2, num_cols=2, ind=2);
 b.plot(num_samples=10000, bins=100, title='Beta', num_rows=2, num_cols=2, ind=3);
 l.plot(num_samples=10000, bins=100, title='Lognormal', num_rows=2, num_cols=2, ind=4);
-plt.show()
+#plt.show()
