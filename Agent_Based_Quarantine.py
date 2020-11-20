@@ -7,11 +7,11 @@ import random
 # This class runs the simulation
 
 class Simulator:
-    def __init__(self, t_domain, dt, locations, people, beta, gamma, quarantine):
+    def __init__(self, t_domain, dt, locations, people, lam, gamma, quarantine):
         self.t = np.linspace(t_domain[0], t_domain[1], int((t_domain[1] - t_domain[0])/dt + 1))
         self.locations = locations
         self.dt = dt
-        self.beta = beta
+        self.lam = lam
         self.gamma = gamma
         self.people = people
         self.quarantine = quarantine
@@ -89,7 +89,7 @@ class Simulator:
                     elif self.states[t_ind + 1, person_id] == 1:
                         self.locations[self.people[person_id].past_locations[-1].ind].people.append(self.people[person_id])
                     else:
-                        raise TypeError("An uninfected person is in quarantine ")
+                        raise TypeError("An uninfected person is in quarantine")
                 # the past location is not quarantine
                 else:
                     # if the person met these conditions, we sent him in quarantine
@@ -176,23 +176,11 @@ class Location:
 # Still need to implement a function that takes into account these protocols and defined probability parameters
     # For example: Masks might decrease the mean of the gaussian that models the infection probability
 class Protocol:
-    def __init__(self, max_people, masks, outdoors, P_type):
+    def __init__(self, max_people, P_type, lam_scale_fac):
         self.max_people = max_people
-        self.masks = masks
-        self.outdoors = outdoors
         self.P_type = P_type
-        if masks and outdoors:
-            mu, sigma, lam = 0.6, 0.1, dt*(beta*0.8)
-        if masks and not outdoors:
-            mu, sigma, lam = 0.8, 0.1, beta *dt
-        if not masks and outdoors:
-            mu, sigma, lam = 0.5, 0.1, beta * dt
-        if not masks and not outdoors:
-            mu, sigma, lam = 1, 0.1, dt*(beta *1.5)
-        if P_type == "Gaussian":
-            parameters = [mu, sigma]#Factor in how indoors and outdoors affects parameters
-        if P_type == "Poisson":
-            parameters = [lam] #Poisson
+        self.lam_scale_fac = lam_scale_fac
+        parameters = [lam*lam_scale_fac]
         self.P = self.define_probability(parameters)
 
     def define_probability(self, params):
@@ -209,6 +197,30 @@ class Protocol:
             return Lognormal(params[0], params[1])
 
         raise Exception("P_type was not in selected list")
+
+
+#The below class is a SIR Explicit
+class SIR:
+    def __init__(self, beta, gamma, N, t_domain, dt, S0, I0, R0):
+        self.beta = beta
+        self.gamma = gamma
+        self.N = N
+        self.t_domain = t_domain
+        self.dt = dt
+        self.t =t_vec = np.linspace(t_domain[0], t_domain[1], int((t_domain[1] - t_domain[0])/dt + 1))
+        self.S = np.zeros(len(self.t))
+        self.I = np.zeros(len(self.t))
+        self.R = np.zeros(len(self.t))
+        self.S[0] = S0
+        self.I[0] = I0
+        self.R[0] = R0
+    def explicitSolve(self):
+
+        for t_ind in range(0, len(self.t)-1):
+            self.S[t_ind+1] = self.S[t_ind] -  self.beta*self.S[t_ind]*self.I[t_ind]/self.N * self.dt
+            self.I[t_ind+1] = self.I[t_ind] + (self.beta*self.S[t_ind]*self.I[t_ind]/self.N - self.gamma*self.I[t_ind])*self.dt
+            self.R[t_ind+1] = self.R[t_ind] +  self.gamma*self.I[t_ind]*self.dt
+
 
 
 # The below classes are probability distributions
@@ -273,12 +285,14 @@ class Lognormal:
         plt.hist(samples, bins, density=True)
         plt.title(title)
 
-beta = 3/6.5
+beta = 10/6.5
 gamma = 1/6.5
 dt = 1
-AVG_DAYS_SICK = 50
+AVG_DAYS_SICK = 0
 total_people = 7524  # See spreadsheet
 expected_infected = 516  # See spreadsheet
+
+lam = beta/2
 
 # This is just to test the above classes
 people = []
@@ -287,40 +301,37 @@ for p in range(0, total_people):
 
 for x in range(0, expected_infected):
     people[x].current_state = 1
-"""
-people[5].current_state = 1
-people[55].current_state = 1
-people[65].current_state = 1
-people[85].current_state = 1
-"""
-
-"""
-type = "Poisson"
-loc_1 = Location(ind=0, name="Residential", protocol=Protocol(max_people=10e5, masks=True, outdoors=False, P_type=type), people=people[0:250])
-loc_2 = Location(ind=1, name="Gym", protocol=Protocol(max_people=10e5, masks=False, outdoors=False, P_type=type), people=people[250:500])
-loc_3 = Location(ind=2, name="Dining Hall", protocol=Protocol(max_people=10e5, masks=True, outdoors=False, P_type=type), people=people[500:750])
-loc_4 = Location(ind=3, name="Oval", protocol=Protocol(max_people=10e5, masks=True, outdoors=True, P_type=type), people=people[750:1000])
-Quarantine = Location(ind=4, name="Quarantine", protocol=Protocol(max_people=10e5, masks=True, outdoors=False, P_type=type), people=[])
-locations = [loc_1 , loc_2, loc_3, loc_4, Quarantine] ##### MUST ADD LOCATIONS IN ORDER OF IND
-"""
 
 type = "Poisson"
-loc_1 = Location(ind=0, name="Residential", protocol=Protocol(max_people=10e5, masks=True, outdoors=False, P_type=type), people=people[0:total_people])
-loc_2 = Location(ind=1, name="Gym", protocol=Protocol(max_people=10e5, masks=False, outdoors=False, P_type=type), people=[])
-loc_3 = Location(ind=2, name="Dining Hall", protocol=Protocol(max_people=10e5, masks=True, outdoors=False, P_type=type), people=[])
-loc_4 = Location(ind=3, name="Oval", protocol=Protocol(max_people=10e5, masks=True, outdoors=True, P_type=type), people=[])
-Quarantine = Location(ind=4, name="Quarantine", protocol=Protocol(max_people=10e5, masks=True, outdoors=False, P_type=type), people=[])
+loc_1 = Location(ind=0, name="Residential", protocol=Protocol(max_people=10e5, lam_scale_fac=1, P_type=type), people=people[0:total_people])
+loc_2 = Location(ind=1, name="Gym", protocol=Protocol(max_people=10e5, lam_scale_fac=1, P_type=type), people=[])
+loc_3 = Location(ind=2, name="Dining Hall", protocol=Protocol(max_people=10e5, lam_scale_fac=1, P_type=type), people=[])
+loc_4 = Location(ind=3, name="Oval", protocol=Protocol(max_people=10e5, lam_scale_fac=1, P_type=type), people=[])
+Quarantine = Location(ind=4, name="Quarantine", protocol=Protocol(max_people=10e5, lam_scale_fac=1, P_type=type), people=[])
 locations = [loc_1 , loc_2, loc_3, loc_4, Quarantine] ##### MUST ADD LOCATIONS IN ORDER OF IND
 
-sim = Simulator(t_domain=[0, 100], dt=dt, locations=locations, people=people, beta=3/6.5, gamma=1/6.5, quarantine=True)
+
+sim = Simulator(t_domain=[0, 100], dt=dt, locations=locations, people=people, lam=lam, gamma=gamma, quarantine=True)
+
+SIR_Continuous = SIR(beta=beta, gamma=gamma, N=len(people), t_domain=[0, 100], dt=0.1, S0=total_people-expected_infected, I0=expected_infected, R0=0)
+SIR_Continuous.explicitSolve()
+
+
+
+
 
 plt.figure()
 plt.plot(sim.t, sim.S, 'y')
 plt.plot(sim.t, sim.I, 'r')
 plt.plot(sim.t, sim.R, 'b')
-plt.legend(("S", "I", "R"))
-plt.suptitle("Stanford Agent-Based Plot")
-plt.title("Beta = " + str("{:.2f}".format(round(beta, 2))) + ", Gamma = " + str("{:.2f}".format(round(gamma, 2))) + ", Days Sick = " + str(AVG_DAYS_SICK))
+plt.plot(SIR_Continuous.t, SIR_Continuous.S, '--y')
+plt.plot(SIR_Continuous.t, SIR_Continuous.I, '--r')
+plt.plot(SIR_Continuous.t, SIR_Continuous.R, '--b')
+print(sim.S + sim.I + sim.R)
+print(SIR_Continuous.S + SIR_Continuous.I + SIR_Continuous.R)
+plt.legend(("S_Agent", "I_Agent", "R_Agent", "S_Cont", "I_Cont", "R_Cont"))
+plt.suptitle("Stanford Agent-Based Plot vs Continuous")
+plt.title("Beta = " + str("{:.2f}".format(round(beta, 2))) + " Lam = " + str("{:.2f}".format(round(lam, 2)))+ ", Gamma = " + str("{:.2f}".format(round(gamma, 2))) + ", Days Sick = " + str(AVG_DAYS_SICK))
 plt.show()
 
 g = Gaussian(0, 0.1)
