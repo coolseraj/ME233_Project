@@ -285,14 +285,15 @@ class Lognormal:
         plt.hist(samples, bins, density=True)
         plt.title(title)
 
-beta = 10/6.5
+beta = 5/6.5
+lam = 3.2/6.5
 gamma = 1/6.5
 dt = 1
-AVG_DAYS_SICK = 0
+AVG_DAYS_SICK = 2
 total_people = 7524  # See spreadsheet
 expected_infected = 516  # See spreadsheet
 
-lam = beta/2
+
 
 # This is just to test the above classes
 people = []
@@ -312,9 +313,27 @@ locations = [loc_1 , loc_2, loc_3, loc_4, Quarantine] ##### MUST ADD LOCATIONS I
 
 
 sim = Simulator(t_domain=[0, 100], dt=dt, locations=locations, people=people, lam=lam, gamma=gamma, quarantine=True)
+ind_max_I = np.argmax(sim.I)
+max_I = np.max(sim.I)
+beta_estimate = gamma * total_people/sim.S[ind_max_I]
+print(sim.S[ind_max_I])
+print(beta_estimate)
 
-SIR_Continuous = SIR(beta=beta, gamma=gamma, N=len(people), t_domain=[0, 100], dt=0.1, S0=total_people-expected_infected, I0=expected_infected, R0=0)
-SIR_Continuous.explicitSolve()
+
+# Binary Search
+b0 = beta
+b0min = 0
+b0max= 3*beta
+for i in range(0, 10):
+    SIR_Continuous = SIR(beta=b0, gamma=gamma, N=len(people), t_domain=[0, 100], dt=0.1, S0=total_people-expected_infected, I0=expected_infected, R0=0)
+    SIR_Continuous.explicitSolve()
+    max_I_test = np.max(SIR_Continuous.I)
+    if max_I_test > max_I:
+        b0max = b0
+    if max_I_test < max_I:
+        b0min = b0
+    b0 = (b0min + b0max)/2
+    print(b0)
 
 
 
@@ -327,11 +346,9 @@ plt.plot(sim.t, sim.R, 'b')
 plt.plot(SIR_Continuous.t, SIR_Continuous.S, '--y')
 plt.plot(SIR_Continuous.t, SIR_Continuous.I, '--r')
 plt.plot(SIR_Continuous.t, SIR_Continuous.R, '--b')
-print(sim.S + sim.I + sim.R)
-print(SIR_Continuous.S + SIR_Continuous.I + SIR_Continuous.R)
 plt.legend(("S_Agent", "I_Agent", "R_Agent", "S_Cont", "I_Cont", "R_Cont"))
 plt.suptitle("Stanford Agent-Based Plot vs Continuous")
-plt.title("Beta = " + str("{:.2f}".format(round(beta, 2))) + " Lam = " + str("{:.2f}".format(round(lam, 2)))+ ", Gamma = " + str("{:.2f}".format(round(gamma, 2))) + ", Days Sick = " + str(AVG_DAYS_SICK))
+plt.title("Beta Equivalent = " + str("{:.2f}".format(round(b0, 2))) + " Lam = " + str("{:.2f}".format(round(lam, 2)))+ ", Gamma = " + str("{:.2f}".format(round(gamma, 2))) + ", Days Sick = " + str(AVG_DAYS_SICK))
 plt.show()
 
 g = Gaussian(0, 0.1)
