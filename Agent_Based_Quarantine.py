@@ -288,16 +288,16 @@ class Lognormal:
 beta = 10/6.5
 gamma = 1/6.5
 dt = 1
-AVG_DAYS_SICK = 0
-total_people = 7524  # See spreadsheet
-expected_infected = 516  # See spreadsheet
+AVG_DAYS_SICK = 3
+total_people = 3346  # See spreadsheet
+expected_infected = 228  # See spreadsheet
 
 lam = beta/2
 
 # This is just to test the above classes
 people = []
 for p in range(0, total_people):
-    people.append(Person(year="Undergrad", current_state=0, P_transition=[.5, 0.1667, 0.1667, 0.1666], id=p))
+    people.append(Person(year="Undergrad", current_state=0, P_transition=[0.25, 0.25, 0.25, 0.25], id=p))
 
 for x in range(0, expected_infected):
     people[x].current_state = 1
@@ -332,6 +332,8 @@ print(SIR_Continuous.S + SIR_Continuous.I + SIR_Continuous.R)
 plt.legend(("S_Agent", "I_Agent", "R_Agent", "S_Cont", "I_Cont", "R_Cont"))
 plt.suptitle("Stanford Agent-Based Plot vs Continuous")
 plt.title("Beta = " + str("{:.2f}".format(round(beta, 2))) + " Lam = " + str("{:.2f}".format(round(lam, 2)))+ ", Gamma = " + str("{:.2f}".format(round(gamma, 2))) + ", Days Sick = " + str(AVG_DAYS_SICK))
+plt.xlabel("Time (days)")
+plt.ylabel("People")
 plt.show()
 
 g = Gaussian(0, 0.1)
