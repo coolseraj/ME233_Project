@@ -289,15 +289,9 @@ beta = 5/6.5
 lam = 3.2/6.5
 gamma = 1/6.5
 dt = 1
-<<<<<<< HEAD
 AVG_DAYS_SICK = 3
 total_people = 3346  # See spreadsheet
 expected_infected = 228  # See spreadsheet
-=======
-AVG_DAYS_SICK = 2
-total_people = 7524  # See spreadsheet
-expected_infected = 516  # See spreadsheet
->>>>>>> 448455bcd58d806105d2346e80d9ddc6ff1c0ea2
 
 
 
@@ -354,13 +348,9 @@ plt.plot(SIR_Continuous.t, SIR_Continuous.I, '--r')
 plt.plot(SIR_Continuous.t, SIR_Continuous.R, '--b')
 plt.legend(("S_Agent", "I_Agent", "R_Agent", "S_Cont", "I_Cont", "R_Cont"))
 plt.suptitle("Stanford Agent-Based Plot vs Continuous")
-<<<<<<< HEAD
-plt.title("Beta = " + str("{:.2f}".format(round(beta, 2))) + " Lam = " + str("{:.2f}".format(round(lam, 2)))+ ", Gamma = " + str("{:.2f}".format(round(gamma, 2))) + ", Days Sick = " + str(AVG_DAYS_SICK))
 plt.xlabel("Time (days)")
 plt.ylabel("People")
-=======
 plt.title("Beta Equivalent = " + str("{:.2f}".format(round(b0, 2))) + " Lam = " + str("{:.2f}".format(round(lam, 2)))+ ", Gamma = " + str("{:.2f}".format(round(gamma, 2))) + ", Days Sick = " + str(AVG_DAYS_SICK))
->>>>>>> 448455bcd58d806105d2346e80d9ddc6ff1c0ea2
 plt.show()
 
 g = Gaussian(0, 0.1)
